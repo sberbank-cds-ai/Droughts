@@ -8,7 +8,7 @@ from torch.autograd import Variable
 
 from src.models.components.conv_block import ConvBlock
 from src.utils.metrics import rmse, rsquared, smape
-from src.utils.plotting import make_confusion_matrix, make_pred_vs_target_plot
+from src.utils.plotting import make_heatmap, make_pred_vs_target_plot
 
 
 class RCNNModule(LightningModule):
@@ -29,8 +29,11 @@ class RCNNModule(LightningModule):
         self,
         embedding_size: int = 16,
         hidden_state_size: int = 32,
+        kernel_size: int = 3,
         n_cells_hor: int = 200,
         n_cells_ver: int = 250,
+        history_length: int = 1,
+        periods_forward: int = 1,
         batch_size: int = 1,
         lr: float = 0.003,
         weight_decay: float = 0.0,
@@ -43,34 +46,73 @@ class RCNNModule(LightningModule):
 
         self.n_cells_hor = n_cells_hor
         self.n_cells_ver = n_cells_ver
+        self.history_length = history_length
+        self.periods_forward = periods_forward
         self.batch_size = batch_size
         self.lr = lr
         self.weight_decay = weight_decay
 
         self.emb_size = embedding_size
         self.hid_size = hidden_state_size
+        self.kernel_size = kernel_size
 
         self.embedding = nn.Sequential(
-            ConvBlock(1, self.emb_size, 3),
+            ConvBlock(
+                history_length,
+                self.emb_size,
+                self.kernel_size,
+                stride=1,
+                padding=self.kernel_size // 2,
+            ),
             nn.ReLU(),
-            ConvBlock(self.emb_size, self.emb_size, 3),
-        )
-        self.hidden_to_result = nn.Sequential(
-            ConvBlock(hidden_state_size, 2, kernel_size=3),
-            nn.Softmax(dim=1),
+            ConvBlock(
+                self.emb_size,
+                self.emb_size,
+                self.kernel_size,
+                stride=1,
+                padding=self.kernel_size // 2,
+            ),
         )
 
         self.f_t = nn.Sequential(
-            ConvBlock(self.hid_size + self.emb_size, self.hid_size, 3), nn.Sigmoid()
+            ConvBlock(
+                self.hid_size + self.emb_size,
+                self.hid_size,
+                self.kernel_size,
+                stride=1,
+                padding=self.kernel_size // 2,
+            ),
+            nn.Sigmoid(),
         )
         self.i_t = nn.Sequential(
-            ConvBlock(self.hid_size + self.emb_size, self.hid_size, 3), nn.Sigmoid()
+            ConvBlock(
+                self.hid_size + self.emb_size,
+                self.hid_size,
+                self.kernel_size,
+                stride=1,
+                padding=self.kernel_size // 2,
+            ),
+            nn.Sigmoid(),
         )
         self.c_t = nn.Sequential(
-            ConvBlock(self.hid_size + self.emb_size, self.hid_size, 3), nn.Tanh()
+            ConvBlock(
+                self.hid_size + self.emb_size,
+                self.hid_size,
+                self.kernel_size,
+                stride=1,
+                padding=self.kernel_size // 2,
+            ),
+            nn.Tanh(),
         )
         self.o_t = nn.Sequential(
-            ConvBlock(self.hid_size + self.emb_size, self.hid_size, 3), nn.Sigmoid()
+            ConvBlock(
+                self.hid_size + self.emb_size,
+                self.hid_size,
+                self.kernel_size,
+                stride=1,
+                padding=self.kernel_size // 2,
+            ),
+            nn.Sigmoid(),
         )
 
         self.final_conv = nn.Sequential(
@@ -83,7 +125,14 @@ class RCNNModule(LightningModule):
                 bias=False,
             ),
             nn.ReLU(),
-            nn.Conv2d(self.hid_size, 1, kernel_size=1, stride=1, padding=0, bias=False),
+            nn.Conv2d(
+                self.hid_size,
+                self.periods_forward,
+                kernel_size=1,
+                stride=1,
+                padding=0,
+                bias=False,
+            ),
         )
 
         self.register_buffer(
@@ -120,6 +169,14 @@ class RCNNModule(LightningModule):
         prev_c = self.prev_state_c
         prev_h = self.prev_state_h
         x_emb = self.embedding(x)
+        #print("prev_h", prev_h.shape)
+        #print("x", x.shape)
+        #print("x_emb", x_emb.shape)
+        #if x_emb.shape[0] < prev_h.shape[0]:
+        #    prev_h_rest = prev_h[x_emb.shape[0]:,:,:,:]
+        #    prev_h = prev_h[:x_emb.shape[0],:,:,:]
+
+
         x_and_h = torch.cat([prev_h, x_emb], dim=1)
 
         f_i = self.f_t(x_and_h)
@@ -165,7 +222,7 @@ class RCNNModule(LightningModule):
 
         for i in range(1, len(outputs)):
             all_preds = torch.cat((all_preds, outputs[i]["preds"]), 0)
-            all_targets = torch.cat((all_targets, outputs[i]["preds"]), 0)
+            all_targets = torch.cat((all_targets, outputs[i]["targets"]), 0)
 
         # log metrics
         train_metric = self.train_metric(all_preds, all_targets)
@@ -184,7 +241,7 @@ class RCNNModule(LightningModule):
 
         for i in range(1, len(outputs)):
             all_preds = torch.cat((all_preds, outputs[i]["preds"]), 0)
-            all_targets = torch.cat((all_targets, outputs[i]["preds"]), 0)
+            all_targets = torch.cat((all_targets, outputs[i]["targets"]), 0)
 
         # log metrics
         val_metric = self.val_metric(all_preds, all_targets)
@@ -202,25 +259,30 @@ class RCNNModule(LightningModule):
 
         for i in range(1, len(outputs)):
             all_preds = torch.cat((all_preds, outputs[i]["preds"]), 0)
-            all_targets = torch.cat((all_targets, outputs[i]["preds"]), 0)
+            all_targets = torch.cat((all_targets, outputs[i]["targets"]), 0)
 
         # log metrics
+        all_preds = torch.squeeze(all_preds, 1)
         test_metric = self.test_metric(all_preds, all_targets)
         self.log("test/R2", test_metric, on_epoch=True, prog_bar=True)
 
         # log table
-        r2table = np.zeros((all_preds.shape[2], all_preds.shape[3]))
-        for x in range(all_preds.shape[2]):
-            for y in range(all_preds.shape[3]):
+        r2table = np.zeros((all_preds.shape[1], all_preds.shape[2]))
+        for x in range(all_preds.shape[1]):
+            for y in range(all_preds.shape[2]):
                 r2table[x][y] = self.test_metric(
-                    all_preds[:, 0, x, y], all_targets[:, 0, x, y]
+                    all_preds[:, x, y], all_targets[:, x, y]
                 )
-                print(r2table[x][y])
 
         self.log("test/R2_std", np.std(r2table), on_epoch=True, prog_bar=True)
         self.log("test/R2_mean", np.mean(r2table), on_epoch=True, prog_bar=True)
         self.log("test/R2_min", np.min(r2table), on_epoch=True, prog_bar=True)
         self.log("test/R2_max", np.max(r2table), on_epoch=True, prog_bar=True)
+
+        # log R2 table
+        image_name = "confusion_matrix.png"
+        image_path = make_heatmap(r2table, image_name)
+        # self.logger.experiment.log_image(image_path, name="R2 Spatial Distribution")
 
         # log plots
         image_name = "preds_targets.png"
@@ -235,7 +297,7 @@ class RCNNModule(LightningModule):
             ylabel_rotate=0,
             filename=image_name,
         )
-        # self.logger.experiment.add_image("img", image_name, 0)
+        # self.logger.Experiment.log_image("img", image_name, 0)
 
     def on_epoch_end(self):
         pass
