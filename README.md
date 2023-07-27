@@ -2,7 +2,7 @@
 
 PyTorch Lightning implementation of drought forecasting (classification) model (Convolutional LSTM). Classification is based on [PDSI index](https://en.wikipedia.org/wiki/Palmer_drought_index), and its corresponding bins. 
 
-<img src="https://raw.githubusercontent.com/VGrabar/Weather-Prediction-NN/master/docs/pdsi_bins.png" width="400" height="250">
+<img src="https://raw.githubusercontent.com/makboard/Droughts/master/docs/pdsi_bins.png" width="400" height="250">
 
 We solve binary classification problem, where threshold for a drought could be adjusted in config file.
 
