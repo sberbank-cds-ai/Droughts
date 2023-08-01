@@ -34,8 +34,8 @@ defaults:
 original_work_dir: ${hydra:runtime.cwd}
 
 # path to folder with data
-data_dir: ${original_work_dir}/data/
-dataset_name: "pdsi_Belarus_with_neighb.csv"
+data_dir: ${original_work_dir}/data/preprocessed/
+dataset_name: "manchuria_pdsi.csv"
 batch_size: 8
 num_epochs: 80
 
@@ -67,4 +67,4 @@ additional_features: [] #["pr", "pet", "tmmn", "tmmx"]
 
 # default name for the experiment, determines logging folder path
 # (you can overwrite this name in experiment configs)
-name: recalc_newdimensions_${dataset_name}_${model._target_}_history_${history_length}_forward_${periods_forward}
+name: dockertest_${dataset_name}_${model._target_}_history_${history_length}_forward_${periods_forward}

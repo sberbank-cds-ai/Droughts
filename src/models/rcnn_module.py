@@ -5,12 +5,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 from pytorch_lightning import LightningModule
-from sklearn.metrics import r2_score, roc_auc_score
 from torch.autograd import Variable
 
 from src.models.components.conv_block import ConvBlock
 from src.utils.metrics import metrics_celled
-from src.utils.plotting import make_heatmap, make_cf_matrix
+from src.utils.plotting import make_heatmap
 
 
 class ScaledTanh(nn.Module):
@@ -160,15 +159,6 @@ class RCNNModule(LightningModule):
                 bias=False,
             ),
             ScaledTanh(self.tanh_coef),
-            # nn.Tanh(),
-            # nn.Conv2d(
-            #    self.hid_size,
-            #    self.periods_forward,
-            #    kernel_size=1,
-            #    stride=1,
-            #    padding=0,
-            #    bias=False,
-            # ),
         )
 
         self.final_classify = nn.Sequential(
@@ -230,11 +220,6 @@ class RCNNModule(LightningModule):
         c_i = self.c_t(x_and_h)
         o_i = self.o_t(x_and_h)
 
-        # print("prev_c", prev_c.shape)
-        # print("f_i", f_i.shape)
-        # print("i_i", i_i.shape)
-        # print("c_i", c_i.shape)
-
         next_c = prev_c * f_i + i_i * c_i
         next_h = torch.tanh(next_c) * o_i
 
@@ -253,6 +238,7 @@ class RCNNModule(LightningModule):
     def step(self, batch: Any):
         x, y = batch
         preds = self.forward(x)
+        # padding of last batch
         if y.shape[0] < self.batch_size:
             y = torch.nn.functional.pad(
                 y, pad=(0,0,0,0,0,0,0,self.batch_size - y.shape[0]), value=0
@@ -330,13 +316,6 @@ class RCNNModule(LightningModule):
                 prog_bar=True,
             )
 
-        # log metrics
-        # r2table = rsquared(all_targets, all_preds, mode="mean")
-        # self.log("train/R2_std", np.std(r2table), on_epoch=True, prog_bar=True)
-        # self.log("train/R2", np.median(r2table), on_epoch=True, prog_bar=True)
-        # self.log("train/R2_min", np.min(r2table), on_epoch=True, prog_bar=True)
-        # self.log("train/R2_max", np.max(r2table), on_epoch=True, prog_bar=True)
-
     def validation_step(self, batch: Any, batch_idx: int):
         loss, preds, targets = self.step(batch)
         self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=True)
@@ -375,13 +354,6 @@ class RCNNModule(LightningModule):
                 prog_bar=True,
             )
 
-        # log metrics
-        # r2table = rsquared(all_targets, all_preds, mode="mean")
-        # self.log("val/R2_std", np.std(r2table), on_epoch=True, prog_bar=True)
-        # self.log("val/R2", np.median(r2table), on_epoch=True, prog_bar=True)
-        # self.log("val/R2_min", np.min(r2table), on_epoch=True, prog_bar=True)
-        # self.log("val/R2_max", np.max(r2table), on_epoch=True, prog_bar=True)
-
     def test_step(self, batch: Any, batch_idx: int):
         loss, preds, targets = self.step(batch)
         if self.mode == "regression":
@@ -410,7 +382,7 @@ class RCNNModule(LightningModule):
         all_preds = torch.softmax(all_preds, dim=1)
         # log confusion matrix
         preds_for_cm = torch.argmax(all_preds, dim=1)
-        # self.logger.experiment[0].log_confusion_matrix(torch.flatten(all_targets), torch.flatten(preds_for_cm))
+        self.logger.experiment.log_confusion_matrix(torch.flatten(all_targets), torch.flatten(preds_for_cm))
         # probability of first class
         all_preds = all_preds[:, 1, :, :]
 
@@ -518,26 +490,7 @@ class RCNNModule(LightningModule):
 
         rocauc_path = make_heatmap(rocauc_table, filename="rocauc_spatial.png")
         torch.save(rocauc_table, "rocauc_table.pt")
-        self.logger.experiment[0].log_image(rocauc_path)
-
-        # log metrics
-        # test_r2table = rsquared(all_targets, all_preds, mode="full")
-        # self.log("test/R2_std", np.std(test_r2table), on_epoch=True, prog_bar=True)
-        # self.log(
-        #     "test/R2_median", np.median(test_r2table), on_epoch=True, prog_bar=True
-        # )
-        # self.log("test/R2_min", np.min(test_r2table), on_epoch=True, prog_bar=True)
-        # self.log("test/R2_max", np.max(test_r2table), on_epoch=True, prog_bar=True)
-        if self.mode == "regression":
-            self.log(
-                "test/baseline_MSE",
-                self.criterion(all_baselines, all_targets),
-                on_epoch=True,
-                prog_bar=True,
-            )
-
-    def on_epoch_end(self):
-        pass
+        self.logger.experiment.log_image(rocauc_path)
 
     def configure_optimizers(self):
         """Choose what optimizers and learning-rate schedulers to use in your optimization.

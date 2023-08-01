@@ -4,7 +4,7 @@ from typing import List
 import hydra
 from omegaconf import DictConfig
 from pytorch_lightning import LightningDataModule, LightningModule, Trainer, seed_everything
-from pytorch_lightning.loggers import LightningLoggerBase
+from pytorch_lightning.loggers.base import LightningLoggerBase
 
 from src import utils
 
@@ -35,11 +35,11 @@ def test(config: DictConfig) -> None:
     datamodule.setup()
     config.model.n_cells_hor = datamodule.h
     config.model.n_cells_ver = datamodule.w 
-    config.model.global_avg = datamodule.data_test.global_avg
     
     # Init lightning model
     log.info(f"Instantiating model <{config.model._target_}>")
     model: LightningModule = hydra.utils.instantiate(config.model)
+    model.global_avg = datamodule.data_test.global_avg
 
     # Init lightning loggers
     logger: List[LightningLoggerBase] = []

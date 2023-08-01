@@ -26,9 +26,8 @@ def main(config: DictConfig):
     utils.extras(config)
     # Evaluate model
     chkpts = []
-    os.chdir("/Weather-Prediction-NN")
+    os.chdir("/app")
     path = config.ckpt_folder
-    print(path)
     for ck in Path(path).rglob("*.ckpt"):
         if not "last" in str(ck):
             chkpts.append(ck)

@@ -8,7 +8,7 @@ down_border: 0
 right_border: 350
 up_border: 350
 time_col: "date"
-event_col: "val"
+event_col: "value"
 x_col: "x"
 y_col: "y"
 train_val_test_split: [0.7, 0.3, 0.3]

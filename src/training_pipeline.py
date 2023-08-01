@@ -10,7 +10,7 @@ from pytorch_lightning import (
     Trainer,
     seed_everything,
 )
-from pytorch_lightning.loggers import LightningLoggerBase
+from pytorch_lightning.loggers.base import LightningLoggerBase
 
 from src import utils
 
@@ -43,6 +43,7 @@ def train(config: DictConfig) -> Optional[float]:
     # Init lightning datamodule
     log.info(f"Instantiating datamodule <{config.datamodule._target_}>")
     datamodule: LightningDataModule = hydra.utils.instantiate(config.datamodule)
+    datamodule.prepare_data()
     datamodule.setup()
     config.model.n_cells_hor = datamodule.h
     config.model.n_cells_ver = datamodule.w 

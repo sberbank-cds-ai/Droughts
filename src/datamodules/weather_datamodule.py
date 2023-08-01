@@ -188,7 +188,7 @@ class WeatherDataModule(LightningDataModule):
         This method is called only from a single GPU.
         Do not use it to assign state (self.x = y).
         """
-        celled_data_path = pathlib.Path(self.data_dir, "celled", self.dataset_name)
+        celled_data_path = pathlib.Path(pathlib.Path(self.data_dir).parent, "celled", self.dataset_name)
         if not celled_data_path.is_file():
             celled_data = create_celled_data(
                 self.data_dir,
@@ -204,7 +204,7 @@ class WeatherDataModule(LightningDataModule):
         data_dir_geo = self.dataset_name.split(self.feature_to_predict)[1]
         for feature in self.additional_features:
             celled_feature_path = pathlib.Path(
-                self.data_dir, "celled", feature + data_dir_geo
+                pathlib.Path(self.data_dir).parent, "celled", feature + data_dir_geo
             )
             if not celled_feature_path.is_file():
                 celled_feature = create_celled_data(
@@ -227,7 +227,7 @@ class WeatherDataModule(LightningDataModule):
 
         # load datasets only if they're not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
-            celled_data_path = pathlib.Path(self.data_dir, "celled", self.dataset_name)
+            celled_data_path = pathlib.Path(pathlib.Path(self.data_dir).parent, "celled", self.dataset_name)
             celled_data = torch.load(celled_data_path)
             # make borders divisible by patch size
             h = celled_data.shape[1]
@@ -245,7 +245,7 @@ class WeatherDataModule(LightningDataModule):
             data_dir_geo = self.dataset_name.split(self.feature_to_predict)[1]
             for feature in self.additional_features:
                 celled_feature_path = pathlib.Path(
-                    self.data_dir, "celled", feature + data_dir_geo
+                    pathlib.Path(self.data_dir).parent, "celled", feature + data_dir_geo
                 )
                 celled_feature = torch.load(celled_feature_path)
                 # make borders divisible by patch size
