@@ -6,6 +6,19 @@ PyTorch Lightning implementation of drought forecasting (classification) model (
 
 We solve binary classification problem, where threshold for a drought could be adjusted in config file.
 
+## Docker container launch
+
+First, build an image
+
+```
+docker build . -t=<docker_image_name>
+```
+Then run a container with required parameters
+
+```
+docker run --mount type=bind,source=/local_path/Droughts/,destination=/Droughts/ -p <port_in>:<port_out> --memory=64g --cpuset-cpus="0-7" --gpus '"device=0"'  -it --rm --name=<docker_container_name>  <docker_image_name>
+```
+
 ## Preprocessing ##
 
 Input is geospatial monthly data, downloaded as .tif from public sources (e.g. from Google Earth Engine) and put into "data/raw" folder. Naming convention is "region_feature.tif". Please run
