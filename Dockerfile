@@ -5,18 +5,22 @@ FROM ubuntu:20.04
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
+ENV TZ=Europe/Moscow
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 # Set work directory
 WORKDIR /app
 
 # Install dependencies
 COPY requirements.txt /app
-RUN apt-get update && apt-get install -y python3 python3-pip
-RUN apt -y install libxt6 libxrender1 libxext6 libgl1-mesa-glx libqt5widgets5 ffmpeg
+RUN apt-get update && apt-get install -y python3 python3-pip libgdal-dev git vim
 RUN pip install -r requirements.txt
+# Install GDAL (for preprocessing) 
+ARG CPLUS_INCLUDE_PATH=/usr/include/gdal
+ARG C_INCLUDE_PATH=/usr/include/gdal
+RUN pip3 install gdal==$(gdal-config --version)
 # Create folders
 RUN mkdir -p data/raw data/preprocessed data/celled
-# Install GDAL for preprocessing
-
 # Copy project
 COPY . /app/
 

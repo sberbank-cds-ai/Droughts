@@ -22,13 +22,14 @@ endyear = args.endyear
 endmonth = args.endmonth
 
 save_path = "data/preprocessed/"
+print(f"region {region}")
+print(f"band {feature}")
 
 
 ds = gdal.Open("data/raw/" + region + "_" + feature + ".tif")
-print(ds.GetMetadata())
-print("number of months ", ds.RasterCount)
-print("x dim ", ds.RasterXSize)
-print("y dim ", ds.RasterYSize)
+print(f"number of months {ds.RasterCount}")
+print(f"x dim {ds.RasterXSize}")
+print(f"y dim {ds.RasterYSize}")
 
 num_of_months = ds.RasterCount
 xsize = ds.RasterXSize
@@ -37,7 +38,7 @@ all_data = np.zeros((num_of_months, 1, ysize, xsize))
 
 curr_month = endmonth
 curr_year = endyear
-total_df = pd.DataFrame(columns=["date", "x", "y", "value"])
+total_df = pd.DataFrame(columns=["y", "x", "value", "date"])
 
 
 for i in tqdm.tqdm(range(num_of_months - 1, 1, -1)):
@@ -48,16 +49,21 @@ for i in tqdm.tqdm(range(num_of_months - 1, 1, -1)):
     curr_date = str(curr_year) + "-" + str(curr_month)
     band = ds.GetRasterBand(i)
     data = band.ReadAsArray()
-    # pdsi needs to be normalized by 100
+    # terraclim features need to be normalized
     if feature == "pdsi":
         data = data / 100
+    elif feature == "pet" or feature == "tmmn" or feature == "tmmx":
+        data = data / 10
     all_data[i][0] = data
-    for x in range(xsize):
-        for y in range(ysize):
-            total_df = total_df.append(
-                {"date": curr_date, "x": x, "y": y, "value": data[x][y]},
-                ignore_index=True,
-            )
+
+    df_row = (
+        pd.DataFrame(data, columns=list(range(xsize)))
+        .reset_index()
+        .melt(id_vars="index")
+        .rename(columns={"index": "y", "variable": "x"})
+    )
+    df_row["date"] = curr_date
+    total_df = pd.concat([total_df, df_row])
 
     curr_month -= 1
 

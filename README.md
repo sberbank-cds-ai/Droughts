@@ -11,7 +11,7 @@ We solve binary classification problem, where threshold for a drought could be a
 Input is geospatial monthly data, downloaded as .tif from public sources (e.g. from Google Earth Engine) and put into "data/raw" folder. Naming convention is "region_feature.tif". Please run
 
 ```
-python preprocess.py --region region_name --band feature_name --endyear last_year_of_data --endmonth last_month_of_data
+python3 preprocess.py --region region_name --band feature_name --endyear last_year_of_data --endmonth last_month_of_data
 ```
 
 Results (both as .csv and .npy files) could be found in "data/preprocessed" folder.
@@ -20,7 +20,7 @@ Results (both as .csv and .npy files) could be found in "data/preprocessed" fold
 
 To train model - first, change configs of datamodule and network (if necessary), edit necessary parameters (e.g. data path in train.yaml) - and then run
 ```
-python train.py --config==train.yaml
+python3 train.py --config==train.yaml
 ```
 
 Experiments results can be tracked via Comet ML (please add your token to logger config file or export it as enviromental variable)
@@ -29,5 +29,5 @@ Experiments results can be tracked via Comet ML (please add your token to logger
 
 To run model on test dataset, calculate metrics and save predictions - first, change configs of datamodule and network (if necessary), add path to model checkpoint - and then run
 ```
-python test.py --config==test.yaml
+python3 test.py --config==test.yaml
 
