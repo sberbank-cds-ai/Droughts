@@ -1,6 +1,7 @@
 import numpy as np
 import torch
-from torchmetrics.classification import AUROC, AveragePrecision, F1Score, ROC
+from torchmetrics.classification import AUROC, AveragePrecision, ROC
+from torcheval.metrics.functional import binary_f1_score
 
 
 def metrics_celled(all_targets, all_preds, mode: str = "train"):
@@ -31,10 +32,7 @@ def metrics_celled(all_targets, all_preds, mode: str = "train"):
                 j_stat = tpr - fpr
                 ind = torch.argmax(j_stat).item()
                 thresholds[x][y] = thr[ind]
-                f1 = F1Score(task="binary", threshold=thresholds[x][y]).to(
-                    torch.device("cuda", 0)
-                )
-                f1_table[x][y] = f1(all_preds[:, x, y], all_targets[:, x, y])
+                f1_table[x][y] = binary_f1_score(all_preds[:, x, y], all_targets[:, x, y], threshold=thresholds[x][y])
 
         ap_table = torch.nan_to_num(ap_table, nan=0.0)
         f1_table = torch.nan_to_num(f1_table, nan=0.0)
